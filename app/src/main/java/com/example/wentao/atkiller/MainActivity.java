@@ -2,6 +2,7 @@ package com.example.wentao.atkiller;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -171,7 +172,9 @@ public class MainActivity extends BaseActivity {
         String[] permissions = new String[]{
                 Manifest.permission.CAMERA,
                 Manifest.permission.READ_CONTACTS,
-                Manifest.permission.WRITE_CONTACTS};
+                Manifest.permission.WRITE_CONTACTS,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE};
 
         List<String> deniedPermissionList = new ArrayList<>();
 

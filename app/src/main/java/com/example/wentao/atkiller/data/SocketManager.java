@@ -27,8 +27,7 @@ public class SocketManager {
     public interface ConnectionStateAndDataChanagedListener {
         void onConnected();
         void onDisconnectedByServer();
-
-        void onReadContact();
+        void onReadJson(String jsonString);
     }
     public void setConnectionStateAndDataChanagedListener(ConnectionStateAndDataChanagedListener connectionStateAndDataChanagedListener){
         if(connectionStateAndDataChanagedListener != null) {
@@ -89,12 +88,19 @@ public class SocketManager {
                                 String result = StandardCharsets.US_ASCII.decode(readContentBuffer).toString();
                                 Log.d(LOG_TAG, result);
 
+                                if (connectionStateAndDataChanagedListener != null) {
+                                    connectionStateAndDataChanagedListener.onReadJson(result);
+                                }
+
                                 String writeContent = "S7 Batman";
                                 readContentBuffer.clear();
                                 readContentBuffer.put(writeContent.getBytes());
                                 readContentBuffer.flip();
                                 sc.write(readContentBuffer);
-                            } if (readSize == -1 || !sc.isConnected()) { // Connection has been closed by server
+                            }
+
+                            // Connection has been closed by server
+                            if (readSize == -1 || !sc.isConnected()) {
                                 stop = true;
 
                                 // Informing the caller
@@ -103,7 +109,9 @@ public class SocketManager {
                                 }
 
                                 break;
-                            } else {  // No content
+                            }
+                            // No content
+                            else {
                                 break;
                             }
                         }

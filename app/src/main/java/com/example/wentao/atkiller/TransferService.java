@@ -9,7 +9,7 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.example.wentao.atkiller.data.ContactData;
+import com.example.wentao.atkiller.data.JsonParser;
 import com.example.wentao.atkiller.data.ScanQRResult;
 import com.example.wentao.atkiller.data.SocketManager;
 
@@ -24,7 +24,8 @@ public class TransferService extends IntentService {
     private static final String NOTIFICATION_CHANNELID = "TRANSFER_NOTIFICATION";
     private static final int NOTIFICATION_ID = 419;
 
-    private SocketManager socketManager;
+    private SocketManager socketManager = new SocketManager();
+    private JsonParser jsonParser = new JsonParser();;
 
     public TransferService() {
         super("TransferService");
@@ -45,8 +46,6 @@ public class TransferService extends IntentService {
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(NOTIFICATION_ID, notification);
-
-        socketManager = new SocketManager();
     }
 
     @Override
@@ -78,8 +77,8 @@ public class TransferService extends IntentService {
                 }
 
                 @Override
-                public void onReadContact() {
-                    ContactData.read(TransferService.this);
+                public void onReadJson(String jsonString) {
+                    jsonParser.parse(TransferService.this, socketManager, jsonString);
                 }
             });
 
