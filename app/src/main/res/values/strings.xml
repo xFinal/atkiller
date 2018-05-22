@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">atkiller</string>
+
+    <string name="notification_bar_title">atkiller</string>
+    <string name="notification_bar_content">atkiller is running</string>
+
+    <string name="scan_qr_tip">Point the camera at the QR code</string>
+    <string name="toast_invalid_qr">Invalid QR</string>
+
+    <string name="button_text_scan">Scan</string>
+    <string name="button_text_stop_connection">Stop</string>
+
+    <string name="dialog_button_text_no">No</string>
+    <string name="dialog_button_text_yes">Yes</string>
+
+    <string name="dialog_message_stop_connection">Do you want to stop the current connection?</string>
+
+    <string name="dialog_message_open_app_setting_page">
+        Please go to App Setting Page -> Permissions to enable all permissions, otherwise Air Transferring would not work properly
+    </string>
+    <string name="dialog_button_text_go">Go to enable permissions</string>
+</resources>
