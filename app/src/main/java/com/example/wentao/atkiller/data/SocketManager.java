@@ -23,6 +23,9 @@ public class SocketManager {
     private volatile boolean stop = false;
     private volatile boolean lastConnectionClosed = true;
 
+    private ByteBuffer readContentBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    private ByteBuffer writeContentBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+
     private ConnectionStateAndDataChanagedListener connectionStateAndDataChanagedListener;
     public interface ConnectionStateAndDataChanagedListener {
         void onConnected();
@@ -54,9 +57,7 @@ public class SocketManager {
             socketChannel.connect(new InetSocketAddress(pcAddress, pcPortNum));
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
 
-            ByteBuffer headBuffer = ByteBuffer.allocate(HEAD_BUFFER_SIZE);
-            ByteBuffer readContentBuffer = ByteBuffer.allocate(BUFFER_SIZE);
-            ByteBuffer[] bufferArray = new ByteBuffer[]{headBuffer, readContentBuffer};
+//            ByteBuffer[] bufferArray = new ByteBuffer[]{headBuffer, readContentBuffer};
 
             while (!stop) {
                 selector.select(500);
@@ -65,11 +66,10 @@ public class SocketManager {
                 while (it.hasNext()) {
                     SelectionKey key = it.next();
                     it.remove();
-                    SocketChannel sc = (SocketChannel) key.channel();
 
                     // Connected
-                    if (key.isConnectable() && sc.finishConnect()) {
-                        sc.register(selector, SelectionKey.OP_READ);
+                    if (key.isConnectable() && socketChannel.finishConnect()) {
+                        socketChannel.register(selector, SelectionKey.OP_READ);
                         Log.d(LOG_TAG, "Connected");
 
                         // Informing the caller connection has been established
@@ -81,8 +81,10 @@ public class SocketManager {
                     // Reading
                     if (key.isReadable()) {
                         readContentBuffer.clear();
+
                         while (!stop) {
-                            int readSize = sc.read(readContentBuffer);
+                            int readSize = socketChannel.read(readContentBuffer);
+
                             if (readSize > 0) {
                                 readContentBuffer.flip();
                                 String result = StandardCharsets.US_ASCII.decode(readContentBuffer).toString();
@@ -91,16 +93,10 @@ public class SocketManager {
                                 if (connectionStateAndDataChanagedListener != null) {
                                     connectionStateAndDataChanagedListener.onReadJson(result);
                                 }
-
-                                String writeContent = "S7 Batman";
-                                readContentBuffer.clear();
-                                readContentBuffer.put(writeContent.getBytes());
-                                readContentBuffer.flip();
-                                sc.write(readContentBuffer);
                             }
 
                             // Connection has been closed by server
-                            if (readSize == -1 || !sc.isConnected()) {
+                            else if (readSize == -1 || !socketChannel.isConnected()) {
                                 stop = true;
 
                                 // Informing the caller
@@ -119,6 +115,11 @@ public class SocketManager {
                 }
             }
         } catch(Exception e) {
+            // Informing the caller
+            if (connectionStateAndDataChanagedListener != null) {
+                connectionStateAndDataChanagedListener.onDisconnectedByServer();
+            }
+
             e.printStackTrace();
         } finally {
             try {
@@ -135,11 +136,61 @@ public class SocketManager {
         Log.d(LOG_TAG, "Socket closed");
     }
 
-    public void stop() {
-        stop = true;
+    public long writeString(String data) {
+        return writeBytes(data.getBytes(), data.length());
     }
 
-    public void writeData() {
+    public void clearWriteBuffer() {
+        writeContentBuffer.clear();
+    }
 
+    /**
+     * Will not fill the buffer if the remaining size is not enough
+     *
+     * @return The remaining size of the write buffer,
+     * -1 if there is not enough space
+     */
+    public int fillWriteBuffer(byte[] data, int length) {
+        int remaining = -1;
+        if (writeContentBuffer.remaining() >= length) {
+            writeContentBuffer.put(data, writeContentBuffer.position(), length);
+
+            remaining = writeContentBuffer.remaining();
+        }
+
+        return remaining;
+    }
+
+    public long writeBytes(byte[] data, int length) {
+        long writtenBytes = -1;
+
+        if (socketChannel.isConnected()) {
+            try {
+                writeContentBuffer.clear();
+                if (writeContentBuffer.remaining() >= length) {
+                    writeContentBuffer.put(data);
+                    writeContentBuffer.flip();
+
+                    while (true) {
+                        writtenBytes = socketChannel.write(writeContentBuffer);
+
+                        if (writtenBytes >0 || !socketChannel.isConnected()) {
+                            break;
+                        }
+
+                        if (writtenBytes == 0) {
+                            Thread.sleep(500);
+                        }
+                    }
+                }
+            } catch(Exception e) {
+            }
+        }
+
+        return writtenBytes;
+    }
+
+    public void stop() {
+        stop = true;
     }
 }
