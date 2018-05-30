@@ -9,7 +9,7 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
-import com.example.wentao.atkiller.data.JsonParser;
+import com.example.wentao.atkiller.json.JsonParser;
 import com.example.wentao.atkiller.data.ScanQRResult;
 import com.example.wentao.atkiller.data.SocketManager;
 
@@ -77,8 +77,8 @@ public class TransferService extends IntentService {
                 }
 
                 @Override
-                public void onReadJson(String jsonString) {
-                    jsonParser.parse(TransferService.this, socketManager, jsonString);
+                public void handleData() {
+                    jsonParser.parse(TransferService.this, socketManager);
                 }
             });
 

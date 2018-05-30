@@ -4,18 +4,17 @@ import android.util.Log;
 
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Set;
 
 
 public class SocketManager {
     private static final String LOG_TAG = "SocketManager";
-    private static final int HEAD_BUFFER_SIZE = 4;
-    private static final int BUFFER_SIZE = 10240;
+    public static final int SOCKET_DATA_BUFFER_SIZE = 2;
 
     private Selector selector;
     private SocketChannel socketChannel;
@@ -23,19 +22,24 @@ public class SocketManager {
     private volatile boolean stop = false;
     private volatile boolean lastConnectionClosed = true;
 
-    private ByteBuffer readContentBuffer = ByteBuffer.allocate(BUFFER_SIZE);
-    private ByteBuffer writeContentBuffer = ByteBuffer.allocate(BUFFER_SIZE);
+    private ByteBuffer inputBuffer = ByteBuffer.allocate(SOCKET_DATA_BUFFER_SIZE);
+    private ByteBuffer outputBuffer = ByteBuffer.allocate(SOCKET_DATA_BUFFER_SIZE);
 
     private ConnectionStateAndDataChanagedListener connectionStateAndDataChanagedListener;
     public interface ConnectionStateAndDataChanagedListener {
         void onConnected();
         void onDisconnectedByServer();
-        void onReadJson(String jsonString);
+        void handleData();
     }
     public void setConnectionStateAndDataChanagedListener(ConnectionStateAndDataChanagedListener connectionStateAndDataChanagedListener){
         if(connectionStateAndDataChanagedListener != null) {
             this.connectionStateAndDataChanagedListener = connectionStateAndDataChanagedListener;
         }
+    }
+
+    public SocketManager() {
+        inputBuffer.order(ByteOrder.LITTLE_ENDIAN);
+        outputBuffer.order(ByteOrder.LITTLE_ENDIAN);
     }
 
     public void connect(String pcAddress, int pcPortNum) {
@@ -46,7 +50,7 @@ public class SocketManager {
             }
 
             stop = false;
-            lastConnectionClosed = true;
+            lastConnectionClosed = false;
 
             Log.d(LOG_TAG, "Connecting");
 
@@ -56,8 +60,6 @@ public class SocketManager {
 
             socketChannel.connect(new InetSocketAddress(pcAddress, pcPortNum));
             socketChannel.register(selector, SelectionKey.OP_CONNECT);
-
-//            ByteBuffer[] bufferArray = new ByteBuffer[]{headBuffer, readContentBuffer};
 
             while (!stop) {
                 selector.select(500);
@@ -78,20 +80,19 @@ public class SocketManager {
                         }
                     }
 
-                    // Reading
-                    if (key.isReadable()) {
-                        readContentBuffer.clear();
-
+                    // Read the input data
+                    if (socketChannel.isConnected() && key.isReadable()) {
                         while (!stop) {
-                            int readSize = socketChannel.read(readContentBuffer);
+                            inputBuffer.clear();
+                            int readSize = socketChannel.read(inputBuffer);
 
+                            // Handle the input data
                             if (readSize > 0) {
-                                readContentBuffer.flip();
-                                String result = StandardCharsets.US_ASCII.decode(readContentBuffer).toString();
-                                Log.d(LOG_TAG, result);
+                                inputBuffer.flip();
 
+                                // Informing the caller
                                 if (connectionStateAndDataChanagedListener != null) {
-                                    connectionStateAndDataChanagedListener.onReadJson(result);
+                                    connectionStateAndDataChanagedListener.handleData();
                                 }
                             }
 
@@ -106,7 +107,8 @@ public class SocketManager {
 
                                 break;
                             }
-                            // No content
+
+                            // No data
                             else {
                                 break;
                             }
@@ -125,15 +127,25 @@ public class SocketManager {
             try {
                 selector.close();
                 socketChannel.close();
+                selector = null;
+                socketChannel = null;
+                lastConnectionClosed = true;
             } catch(Exception e) {
                 e.printStackTrace();
             }
         }
 
-        selector = null;
-        socketChannel = null;
-
         Log.d(LOG_TAG, "Socket closed");
+    }
+
+    public boolean copyInputBufferRemaining(ByteBuffer dst) {
+        boolean result = false;
+        if (dst.remaining() >= inputBuffer.remaining()) {
+            dst.put(inputBuffer);
+            result = true;
+        }
+
+        return result;
     }
 
     public long writeString(String data) {
@@ -141,7 +153,7 @@ public class SocketManager {
     }
 
     public void clearWriteBuffer() {
-        writeContentBuffer.clear();
+        outputBuffer.clear();
     }
 
     /**
@@ -152,10 +164,10 @@ public class SocketManager {
      */
     public int fillWriteBuffer(byte[] data, int length) {
         int remaining = -1;
-        if (writeContentBuffer.remaining() >= length) {
-            writeContentBuffer.put(data, writeContentBuffer.position(), length);
+        if (outputBuffer.remaining() >= length) {
+            outputBuffer.put(data, outputBuffer.position(), length);
 
-            remaining = writeContentBuffer.remaining();
+            remaining = outputBuffer.remaining();
         }
 
         return remaining;
@@ -166,13 +178,13 @@ public class SocketManager {
 
         if (socketChannel.isConnected()) {
             try {
-                writeContentBuffer.clear();
-                if (writeContentBuffer.remaining() >= length) {
-                    writeContentBuffer.put(data);
-                    writeContentBuffer.flip();
+                outputBuffer.clear();
+                if (outputBuffer.remaining() >= length) {
+                    outputBuffer.put(data);
+                    outputBuffer.flip();
 
                     while (true) {
-                        writtenBytes = socketChannel.write(writeContentBuffer);
+                        writtenBytes = socketChannel.write(outputBuffer);
 
                         if (writtenBytes >0 || !socketChannel.isConnected()) {
                             break;

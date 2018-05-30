@@ -139,13 +139,14 @@ public class MainActivity extends BaseActivity {
         if (!socketConnected) {
             stopTransferService();
 
-            new IntentIntegrator(this)
-                    .setCaptureActivity(ScanQRActivity.class)
-                    .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE_TYPES)
-                    .setPrompt(getString(R.string.scan_qr_tip))
-                    .setCameraId(0)
-                    .setBeepEnabled(false)
-                    .initiateScan();
+//            new IntentIntegrator(this)
+//                    .setCaptureActivity(ScanQRActivity.class)
+//                    .setDesiredBarcodeFormats(IntentIntegrator.QR_CODE_TYPES)
+//                    .setPrompt(getString(R.string.scan_qr_tip))
+//                    .setCameraId(0)
+//                    .setBeepEnabled(false)
+
+            startTransferService("https://www.imobie.com/anytrans/download-android-win-apk.htm?arg={\"IP\":\"192.168.2.253\",\"Port\":58419}");
         } else {
             AlertDialog dialog = new AlertDialog.Builder(this)
                     .setMessage(R.string.dialog_message_stop_connection)

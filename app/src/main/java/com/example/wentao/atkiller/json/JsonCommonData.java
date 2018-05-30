@@ -1,4 +1,4 @@
-package com.example.wentao.atkiller.Json;
+package com.example.wentao.atkiller.json;
 
 public class JsonCommonData {
     public void setAllData(String op, String dataType, String id, String name, long dataLength) {

@@ -8,15 +8,15 @@ import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.util.Base64;
+import android.util.JsonReader;
 import android.util.Log;
 
-import com.example.wentao.atkiller.Json.JsonCommonData;
+import com.example.wentao.atkiller.json.JsonCommonData;
 import com.google.gson.Gson;
 
 import java.io.ByteArrayOutputStream;
-import java.nio.ByteBuffer;
 
-class DcimData {
+public class DcimData {
     private final static String LOG_TAG = "DcimData";
 
     public void listAll(Context context, SocketManager socketManager) {
@@ -55,6 +55,7 @@ class DcimData {
                         break;
                     }
 
+
                     if (socketManager.writeBytes(bitmapData, bitmapData.length) == -1) {
                         break;
                     }
@@ -69,15 +70,7 @@ class DcimData {
     }
 
     private String Bitmap2Base64(Bitmap bitmap) {
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        Bitmap.CompressFormat compressFormat = Bitmap.CompressFormat.JPEG;
-        if (bitmap.hasAlpha()) {
-            compressFormat = Bitmap.CompressFormat.PNG;
-        }
-        bitmap.compress(compressFormat, 100, byteArrayOutputStream);
-        byte[] byteArray = byteArrayOutputStream.toByteArray();
-
-        return Base64.encodeToString(byteArray, Base64.DEFAULT);
+        return Base64.encodeToString(Bitmap2Bytes(bitmap), Base64.DEFAULT);
     }
 
     private byte[] Bitmap2Bytes(Bitmap bitmap) {
